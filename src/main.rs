@@ -1,6 +1,6 @@
-mod ccolor;
+pub mod ccolor;
+pub mod syntax_hl;
 mod work_whit_file;
-
 use crossterm::cursor::RestorePosition;
 use crossterm::terminal::{Clear, ClearType};
 use crossterm::{cursor, event::{read, Event, KeyCode}, execute, queue, style, style::{Color, Print, SetForegroundColor}, terminal};
@@ -24,7 +24,7 @@ fn main() {
     let mut insert = false;
     let mut command = false;
     let mut command_text = String::from(":");
-    let mut lock_info_line:bool = false;
+    let mut lock_info_line:bool = true;
     let mut remember_cursor_move:u16 = origin;
     let mut remember_cursor_command:(u16,u16) = (origin,0);
     let mut file_path = String::from("NewFile");
@@ -477,18 +477,31 @@ fn main() {
 fn render(text: String, restore:Option<bool>, extra_show_line:u16,origin:u16) {
     let restore = restore.unwrap_or(true);
     let mut stdout = stdout();
-    let lines = text.lines().collect::<Vec<&str>>();
+    let line_count_org = text.split('\n').count();
+    let text = syntax_hl::render(text.clone());
+    let line_count = text.split('\n').count();
     let extra_show_line = extra_show_line as usize;
-    for i in 0..lines.len() {
+
+    let lines = text.lines().collect::<Vec<&str>>();
+
+    let size = terminal::size().unwrap();
+
+
+
+
+    for i in 0..size.1 as usize {
         let line = i + extra_show_line ;
         if line >= lines.iter().count(){
             break;
         }
-        let to_print = lines.get(line).unwrap();
+        let mut to_print = lines.get(line).unwrap().to_string();
+        if line_count != line_count_org{
+            to_print = "Something went wrong in Highlight.rs please turn it off using :set hg".to_string();
+        }
         queue!(stdout,
             cursor::SavePosition,
             cursor::MoveTo(origin,i as u16),
-            terminal::Clear(ClearType::UntilNewLine),
+            Clear(ClearType::UntilNewLine),
             Print(to_print),
         ).unwrap();
         if restore{
@@ -498,12 +511,6 @@ fn render(text: String, restore:Option<bool>, extra_show_line:u16,origin:u16) {
         }
 
     }
-
-
-
-
-
-
 }
 
 fn render_line_info(text:String,lock:bool,file_path:String,is_new_file:bool,extra_show_line:u16) {
